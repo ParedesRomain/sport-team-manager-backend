@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-
 @RestController
 @RequestMapping("/joueurs")
 public class JoueurController {
@@ -40,7 +39,7 @@ public class JoueurController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Joueur create(@RequestBody Joueur joueur) {
-        joueur.setId(null);
+        joueur.setJoueurId(null);
         return joueurRepository.save(joueur);
     }
 
@@ -49,9 +48,11 @@ public class JoueurController {
         return joueurRepository.findById(id).map(existant -> {
             existant.setNom(donnees.getNom());
             existant.setPrenom(donnees.getPrenom());
-            existant.setPoste(donnees.getPoste());
-            existant.setNumero(donnees.getNumero());
-            existant.setActif(donnees.isActif());
+            existant.setNumeroLicence(donnees.getNumeroLicence());
+            existant.setDateNaissance(donnees.getDateNaissance());
+            existant.setTaille(donnees.getTaille());
+            existant.setPoids(donnees.getPoids());
+            existant.setStatut(donnees.getStatut());
             return ResponseEntity.ok(joueurRepository.save(existant));
         }).orElse(ResponseEntity.notFound().build());
     }
@@ -62,6 +63,6 @@ public class JoueurController {
             return ResponseEntity.notFound().build();
         }
         joueurRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
     }
 }

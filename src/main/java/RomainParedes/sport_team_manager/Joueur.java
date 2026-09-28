@@ -1,6 +1,10 @@
 package RomainParedes.sport_team_manager;
 
+import java.time.LocalDate;
+
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -10,19 +14,23 @@ public class Joueur {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long joueurId;
 
     private String nom;
     private String prenom;
-    private String poste;
-    private Integer numero;
-    private boolean actif = true;
+    private String numeroLicence;
+    private LocalDate dateNaissance;
+    private Integer taille;
+    private Integer poids;
+
+    @Enumerated(EnumType.STRING)
+    private JoueurStatut statut = JoueurStatut.ACTIF;
 
     public Joueur() {
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getJoueurId() { return joueurId; }
+    public void setJoueurId(Long joueurId) { this.joueurId = joueurId; }
 
     public String getNom() { return nom; }
     public void setNom(String nom) { this.nom = nom; }
@@ -30,12 +38,18 @@ public class Joueur {
     public String getPrenom() { return prenom; }
     public void setPrenom(String prenom) { this.prenom = prenom; }
 
-    public String getPoste() { return poste; }
-    public void setPoste(String poste) { this.poste = poste; }
+    public String getNumeroLicence() { return numeroLicence; }
+    public void setNumeroLicence(String numeroLicence) { this.numeroLicence = numeroLicence; }
 
-    public Integer getNumero() { return numero; }
-    public void setNumero(Integer numero) { this.numero = numero; }
+    public LocalDate getDateNaissance() { return dateNaissance; }
+    public void setDateNaissance(LocalDate dateNaissance) { this.dateNaissance = dateNaissance; }
 
-    public boolean isActif() { return actif; }
-    public void setActif(boolean actif) { this.actif = actif; }
+    public Integer getTaille() { return taille; }
+    public void setTaille(Integer taille) { this.taille = taille; }
+
+    public Integer getPoids() { return poids; }
+    public void setPoids(Integer poids) { this.poids = poids; }
+
+    public JoueurStatut getStatut() { return statut; }
+    public void setStatut(JoueurStatut statut) { this.statut = statut; }
 }
