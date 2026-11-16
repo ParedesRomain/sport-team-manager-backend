@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -46,6 +45,21 @@ public class ParticipationController {
         return participationRepository.existsByRencontreRencontreIdAndParticipantJoueurId(rencontreId, joueurId);
     }
 
+    @GetMapping("/match/{rencontreId}/complete")
+    public boolean estComplete(@PathVariable Long rencontreId) {
+        List<Participation> participations = participationRepository.findByRencontreRencontreId(rencontreId);
+
+        for (Poste poste : Poste.values()) {
+            boolean titulairePresent = participations.stream().anyMatch(p ->
+                    p.getPoste() == poste && p.getTitulaireOuRemplacant() == TitulaireOuRemplacant.TITULAIRE);
+            if (!titulairePresent) {
+                return false;
+            }
+        }
+
+        return participations.stream().allMatch(p -> p.getParticipant().getStatut() == JoueurStatut.ACTIF);
+    }
+
     public static class ParticipationRequest {
         public Long joueurId;
         public Long rencontreId;
@@ -54,12 +68,25 @@ public class ParticipationController {
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
     public ResponseEntity<Participation> create(@RequestBody ParticipationRequest requete) {
         Joueur joueur = joueurRepository.findById(requete.joueurId).orElse(null);
         Rencontre rencontre = rencontreRepository.findById(requete.rencontreId).orElse(null);
-        if (joueur == null || rencontre == null) {
+        if (joueur == null || rencontre == null || requete.poste == null || requete.titulaireOuRemplacant == null) {
             return ResponseEntity.badRequest().build();
+        }
+
+        if (joueur.getStatut() != JoueurStatut.ACTIF) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        if (participationRepository.existsByRencontreRencontreIdAndParticipantJoueurId(
+                requete.rencontreId, requete.joueurId)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+
+        if (participationRepository.existsByRencontreRencontreIdAndPosteAndTitulaireOuRemplacant(
+                requete.rencontreId, requete.poste, requete.titulaireOuRemplacant)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
 
         Participation participation = new Participation();
@@ -73,13 +100,40 @@ public class ParticipationController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Participation> update(@PathVariable Long id, @RequestBody ParticipationRequest requete) {
-        return participationRepository.findById(id).map(existant -> {
-            Joueur joueur = joueurRepository.findById(requete.joueurId).orElse(existant.getParticipant());
-            existant.setParticipant(joueur);
-            existant.setPoste(requete.poste);
-            existant.setTitulaireOuRemplacant(requete.titulaireOuRemplacant);
-            return ResponseEntity.ok(participationRepository.save(existant));
-        }).orElse(ResponseEntity.notFound().build());
+        Participation existant = participationRepository.findById(id).orElse(null);
+        if (existant == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Joueur joueur = joueurRepository.findById(requete.joueurId).orElse(null);
+        if (joueur == null || requete.poste == null || requete.titulaireOuRemplacant == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Long rencontreId = existant.getRencontre().getRencontreId();
+
+        boolean joueurChange = !joueur.getJoueurId().equals(existant.getParticipant().getJoueurId());
+        if (joueurChange) {
+            if (joueur.getStatut() != JoueurStatut.ACTIF) {
+                return ResponseEntity.badRequest().build();
+            }
+            if (participationRepository.existsByRencontreRencontreIdAndParticipantJoueurId(
+                    rencontreId, joueur.getJoueurId())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            }
+        }
+
+        boolean emplacementChange = existant.getPoste() != requete.poste
+                || existant.getTitulaireOuRemplacant() != requete.titulaireOuRemplacant;
+        if (emplacementChange && participationRepository.existsByRencontreRencontreIdAndPosteAndTitulaireOuRemplacant(
+                rencontreId, requete.poste, requete.titulaireOuRemplacant)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+
+        existant.setParticipant(joueur);
+        existant.setPoste(requete.poste);
+        existant.setTitulaireOuRemplacant(requete.titulaireOuRemplacant);
+        return ResponseEntity.ok(participationRepository.save(existant));
     }
 
     public static class PerformanceRequest {
@@ -87,7 +141,8 @@ public class ParticipationController {
     }
 
     @PatchMapping("/{id}/performance")
-    public ResponseEntity<Participation> mettreAJourLaPerformance(@PathVariable Long id, @RequestBody PerformanceRequest requete) {
+    public ResponseEntity<Participation> mettreAJourLaPerformance(@PathVariable Long id,
+                                                                   @RequestBody PerformanceRequest requete) {
         return participationRepository.findById(id).map(existant -> {
             existant.setPerformance(requete.performance);
             return ResponseEntity.ok(participationRepository.save(existant));
